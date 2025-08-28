@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Slideshow Admin Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        /* Upload Section */
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background: rgba(102, 126, 234, 0.05);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: rgba(118, 75, 162, 0.05);
+        }
+
+        .upload-area.dragover {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .upload-hint {
+            font-size: 0.9rem;
+            color: #999;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Configuration Section */
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .config-group {
+            margin-bottom: 20px;
+        }
+
+        .config-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .config-group input,
+        .config-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .config-group input:focus,
+        .config-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .save-config-btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .save-config-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Photos Grid */
+        .photos-section {
+            grid-column: 1 / -1;
+        }
+
+        .photos-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .photos-count {
+            font-size: 1.1rem;
+            color: #666;
+        }
+
+        .photos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .photo-item {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .photo-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            border-color: #667eea;
+        }
+
+        .photo-preview {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            background: #f5f5f5;
+        }
+
+        .photo-info {
+            padding: 15px;
+        }
+
+        .photo-name {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 0.9rem;
+            word-break: break-word;
+        }
+
+        .photo-meta {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .photo-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .delete-btn {
+            background: #f44336;
+            color: white;
+        }
+
+        .delete-btn:hover {
+            background: #d32f2f;
+        }
+
+        .move-btn {
+            background: #2196F3;
+            color: white;
+        }
+
+        .move-btn:hover {
+            background: #1976D2;
+        }
+
+        /* Progress Bar */
+        .upload-progress {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e1e5e9;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* Notifications */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: #4CAF50;
+        }
+
+        .notification.error {
+            background: #f44336;
+        }
+
+        .notification.info {
+            background: #2196F3;
+        }
+
+        /* Navigation */
+        #nav-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1001;
+            backdrop-filter: blur(15px);
+        }
+
+        #nav-bar h2 {
+            color: #4CAF50;
+            font-size: 1.5rem;
+        }
+
+        #nav-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        #nav-links a {
+            color: #fff;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        #nav-links a:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        #nav-links a.active {
+            background: #4CAF50;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .photos-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+
+        /* Loading States */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <div id="nav-bar">
+        <h2>📸 Photo Slideshow Admin</h2>
+        <div id="nav-links">
+            <a href="index.html">TV Display</a>
+            <a href="admin.html" class="active">Admin Panel</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>📸 Photo Slideshow Admin</h1>
+            <p>Upload, manage, and configure your photo slideshow</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Upload Section -->
+            <div class="card">
+                <h2>📤 Upload Photos</h2>
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">Drag & drop photos here</div>
+                    <div class="upload-hint">or click to browse</div>
+                    <input type="file" id="file-input" multiple accept="image/*">
+                    <button class="upload-btn" onclick="document.getElementById('file-input').click()">
+                        Choose Files
+                    </button>
+                </div>
+                
+                <div class="upload-progress" id="upload-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <div class="progress-text" id="progress-text">0%</div>
+                </div>
+            </div>
+
+            <!-- Configuration Section -->
+            <div class="card">
+                <h2>⚙️ Slideshow Settings</h2>
+                <div class="config-grid">
+                    <div class="config-group">
+                        <label for="interval">Interval (seconds)</label>
+                        <input type="number" id="interval" min="2" max="60" value="5">
+                    </div>
+                    <div class="config-group">
+                        <label for="transition">Transition Effect</label>
+                        <select id="transition">
+                            <option value="fade">Fade</option>
+                            <option value="slide-left">Slide Left</option>
+                            <option value="slide-right">Slide Right</option>
+                            <option value="zoom-in">Zoom In</option>
+                            <option value="zoom-out">Zoom Out</option>
+                        </select>
+                    </div>
+                    <div class="config-group">
+                        <label for="autoPlay">Auto Play</label>
+                        <select id="autoPlay">
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                    <div class="config-group">
+                        <label for="loop">Loop Slideshow</label>
+                        <select id="loop">
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="save-config-btn" id="save-config-btn">
+                    💾 Save Configuration
+                </button>
+            </div>
+
+            <!-- Photos Management -->
+            <div class="card photos-section">
+                <div class="photos-header">
+                    <h2>🖼️ Photo Library</h2>
+                    <div class="photos-count" id="photos-count">0 photos</div>
+                </div>
+                <div class="photos-grid" id="photos-grid">
+                    <!-- Photos will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class AdminPanel {
+            constructor() {
+                this.photos = [];
+                this.config = {
+                    slideshow: {
+                        interval: 5000,
+                        transition: 'fade',
+                        autoPlay: true,
+                        loop: true
+                    }
+                };
+                this.uploadArea = null;
+                this.fileInput = null;
+                
+                this.init();
+            }
+            
+            init() {
+                this.setupEventListeners();
+                this.loadPhotos();
+                this.loadConfig();
+            }
+            
+            setupEventListeners() {
+                this.uploadArea = document.getElementById('upload-area');
+                this.fileInput = document.getElementById('file-input');
+                
+                // File input change
+                this.fileInput.addEventListener('change', (e) => {
+                    this.handleFileSelect(e.target.files);
+                });
+                
+                // Drag and drop
+                this.uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    this.uploadArea.classList.add('dragover');
+                });
+                
+                this.uploadArea.addEventListener('dragleave', () => {
+                    this.uploadArea.classList.remove('dragover');
+                });
+                
+                this.uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    this.uploadArea.classList.remove('dragover');
+                    this.handleFileSelect(e.dataTransfer.files);
+                });
+                
+                // Click to upload
+                this.uploadArea.addEventListener('click', () => {
+                    this.fileInput.click();
+                });
+                
+                // Save configuration
+                document.getElementById('save-config-btn').addEventListener('click', () => {
+                    this.saveConfiguration();
+                });
+            }
+            
+            loadPhotos() {
+                // For static site, we'll use sample photos
+                this.photos = this.getSamplePhotos();
+                this.updatePhotosGrid();
+                this.updatePhotosCount();
+            }
+            
+            getSamplePhotos() {
+                return [
+                    {
+                        id: 0,
+                        name: "Sample Photo 1",
+                        url: "https://picsum.photos/1920/1080?random=1",
+                        size: 1024000,
+                        modified: new Date().toISOString()
+                    },
+                    {
+                        id: 1,
+                        name: "Sample Photo 2", 
+                        url: "https://picsum.photos/1920/1080?random=2",
+                        size: 1024000,
+                        modified: new Date().toISOString()
+                    },
+                    {
+                        id: 2,
+                        name: "Sample Photo 3",
+                        url: "https://picsum.photos/1920/1080?random=3", 
+                        size: 1024000,
+                        modified: new Date().toISOString()
+                    }
+                ];
+            }
+            
+            loadConfig() {
+                // Load config from localStorage or use defaults
+                const savedConfig = localStorage.getItem('slideshowConfig');
+                if (savedConfig) {
+                    this.config = JSON.parse(savedConfig);
+                }
+                this.updateConfigForm();
+            }
+            
+            updateConfigForm() {
+                document.getElementById('interval').value = this.config.slideshow.interval / 1000;
+                document.getElementById('transition').value = this.config.slideshow.transition;
+                document.getElementById('autoPlay').value = this.config.slideshow.autoPlay.toString();
+                document.getElementById('loop').value = this.config.slideshow.loop.toString();
+            }
+            
+            saveConfiguration() {
+                const newConfig = {
+                    slideshow: {
+                        interval: parseInt(document.getElementById('interval').value) * 1000,
+                        transition: document.getElementById('transition').value,
+                        autoPlay: document.getElementById('autoPlay').value === 'true',
+                        loop: document.getElementById('loop').value === 'true',
+                        random: this.config.slideshow.random || false
+                    }
+                };
+                
+                this.config = newConfig;
+                localStorage.setItem('slideshowConfig', JSON.stringify(newConfig));
+                this.showNotification('Configuration saved!', 'success');
+            }
+            
+            handleFileSelect(files) {
+                if (files.length === 0) return;
+                
+                this.uploadFiles(Array.from(files));
+            }
+            
+            async uploadFiles(files) {
+                const progressBar = document.getElementById('upload-progress');
+                const progressFill = document.getElementById('progress-fill');
+                const progressText = document.getElementById('progress-text');
+                
+                progressBar.style.display = 'block';
+                
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const progress = ((i + 1) / files.length) * 100;
+                    
+                    progressFill.style.width = `${progress}%`;
+                    progressText.textContent = `${Math.round(progress)}%`;
+                    
+                    try {
+                        await this.uploadFile(file);
+                    } catch (error) {
+                        console.error('Upload error:', error);
+                        this.showNotification(`Failed to upload ${file.name}`, 'error');
+                    }
+                }
+                
+                // Hide progress bar after a delay
+                setTimeout(() => {
+                    progressBar.style.display = 'none';
+                    progressFill.style.width = '0%';
+                }, 2000);
+            }
+            
+            async uploadFile(file) {
+                // For static site, we'll simulate upload
+                // In a real implementation, you'd upload to a server
+                const photoInfo = {
+                    id: this.photos.length,
+                    name: file.name,
+                    url: URL.createObjectURL(file),
+                    size: file.size,
+                    modified: new Date().toISOString()
+                };
+                
+                this.photos.unshift(photoInfo);
+                this.updatePhotosGrid();
+                this.updatePhotosCount();
+                
+                this.showNotification(`Photo uploaded: ${file.name}`, 'success');
+            }
+            
+            updatePhotosGrid() {
+                const grid = document.getElementById('photos-grid');
+                grid.innerHTML = '';
+                
+                this.photos.forEach((photo, index) => {
+                    const photoItem = this.createPhotoItem(photo, index);
+                    grid.appendChild(photoItem);
+                });
+            }
+            
+            createPhotoItem(photo, index) {
+                const item = document.createElement('div');
+                item.className = 'photo-item';
+                
+                const size = this.formatFileSize(photo.size);
+                const date = new Date(photo.modified).toLocaleDateString();
+                
+                item.innerHTML = `
+                    <img src="${photo.url}" alt="${photo.name}" class="photo-preview" 
+                         onerror="this.style.display='none'">
+                    <div class="photo-info">
+                        <div class="photo-name">${photo.name}</div>
+                        <div class="photo-meta">${size} • ${date}</div>
+                        <div class="photo-actions">
+                            <button class="action-btn move-btn" onclick="adminPanel.movePhoto(${index}, -1)" 
+                                    ${index === 0 ? 'disabled' : ''}>⬆️</button>
+                            <button class="action-btn move-btn" onclick="adminPanel.movePhoto(${index}, 1)" 
+                                    ${index === this.photos.length - 1 ? 'disabled' : ''}>⬇️</button>
+                            <button class="action-btn delete-btn" onclick="adminPanel.deletePhoto(${index})">🗑️</button>
+                        </div>
+                    </div>
+                `;
+                
+                return item;
+            }
+            
+            deletePhoto(index) {
+                if (!confirm('Are you sure you want to delete this photo?')) return;
+                
+                this.photos.splice(index, 1);
+                this.updatePhotosGrid();
+                this.updatePhotosCount();
+                this.showNotification('Photo deleted successfully!', 'success');
+            }
+            
+            movePhoto(index, direction) {
+                const newIndex = index + direction;
+                if (newIndex < 0 || newIndex >= this.photos.length) return;
+                
+                // Swap photos
+                [this.photos[index], this.photos[newIndex]] = [this.photos[newIndex], this.photos[index]];
+                
+                // Update display
+                this.updatePhotosGrid();
+                this.showNotification('Photo order updated!', 'success');
+            }
+            
+            updatePhotosCount() {
+                const count = this.photos.length;
+                document.getElementById('photos-count').textContent = 
+                    `${count} photo${count !== 1 ? 's' : ''}`;
+            }
+            
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            showNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+                
+                document.body.appendChild(notification);
+                
+                // Show notification
+                setTimeout(() => notification.classList.add('show'), 100);
+                
+                // Hide notification
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                    setTimeout(() => notification.remove(), 300);
+                }, 3000);
+            }
+        }
+        
+        // Initialize admin panel when page loads
+        let adminPanel;
+        document.addEventListener('DOMContentLoaded', () => {
+            adminPanel = new AdminPanel();
+        });
+    </script>
+</body>
+</html>
