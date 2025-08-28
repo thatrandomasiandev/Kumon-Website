@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Slideshow - TV Display</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            cursor: none; /* Hide cursor for TV display */
+        }
+
+        #slideshow-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+        }
+
+        .photo-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+
+        .photo-slide.active {
+            opacity: 1;
+        }
+
+        .photo-slide img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 0 50px rgba(255, 255, 255, 0.1);
+        }
+
+        /* Transition Effects */
+        .fade {
+            transition: opacity 1s ease-in-out;
+        }
+
+        .slide-left {
+            transition: transform 1s ease-in-out, opacity 1s ease-in-out;
+            transform: translateX(100%);
+        }
+
+        .slide-left.active {
+            transform: translateX(0%);
+        }
+
+        .slide-right {
+            transition: transform 1s ease-in-out, opacity 1s ease-in-out;
+            transform: translateX(-100%);
+        }
+
+        .slide-right.active {
+            transform: translateX(0%);
+        }
+
+        .zoom-in {
+            transition: transform 1s ease-in-out, opacity 1s ease-in-out;
+            transform: scale(0.8);
+        }
+
+        .zoom-in.active {
+            transform: scale(1);
+        }
+
+        .zoom-out {
+            transition: transform 1s ease-in-out, opacity 1s ease-in-out;
+            transform: scale(1.2);
+        }
+
+        .zoom-out.active {
+            transform: scale(1);
+        }
+
+        /* Controls */
+        #controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px 30px;
+            border-radius: 30px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #controls:hover {
+            opacity: 1;
+        }
+
+        #controls button {
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: #fff;
+            font-size: 28px;
+            padding: 15px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #controls button:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.1);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        #speed-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #speed {
+            width: 120px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        #speed::-webkit-slider-thumb {
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid #fff;
+        }
+
+        #speed-value {
+            color: #fff;
+            font-size: 16px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        /* Status Display */
+        #status {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 300px;
+        }
+
+        #photo-info {
+            font-size: 16px;
+            color: #ccc;
+            line-height: 1.4;
+        }
+
+        #connection-status {
+            color: #4CAF50;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        #photo-count {
+            color: #2196F3;
+            font-size: 14px;
+        }
+
+        /* Loading Screen */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        #loading-screen h1 {
+            font-size: 3rem;
+            margin-bottom: 2rem;
+            color: #4CAF50;
+            text-align: center;
+        }
+
+        #loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 2rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #loading-message {
+            font-size: 1.2rem;
+            color: #ccc;
+            text-align: center;
+        }
+
+        /* Error Screen */
+        #error-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        #error-screen h2 {
+            color: #f44336;
+            margin-bottom: 1rem;
+            font-size: 2rem;
+        }
+
+        #error-message {
+            color: #ccc;
+            text-align: center;
+            margin-bottom: 2rem;
+            max-width: 500px;
+            line-height: 1.5;
+        }
+
+        #retry-btn {
+            padding: 15px 30px;
+            background: #4CAF50;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: background 0.3s ease;
+        }
+
+        #retry-btn:hover {
+            background: #45a049;
+        }
+
+        /* Responsive Design for TV Screens */
+        @media (min-width: 1920px) {
+            #controls {
+                bottom: 50px;
+                gap: 25px;
+                padding: 25px 40px;
+            }
+
+            #controls button {
+                font-size: 36px;
+                width: 80px;
+                height: 80px;
+            }
+
+            #status {
+                top: 50px;
+                right: 50px;
+                padding: 25px;
+            }
+
+            #loading-screen h1 {
+                font-size: 4rem;
+            }
+
+            #loading-spinner {
+                width: 80px;
+                height: 80px;
+            }
+        }
+
+        /* Hide controls after inactivity */
+        .controls-hidden #controls {
+            opacity: 0;
+        }
+
+        /* Show controls on any interaction */
+        body:not(.controls-hidden) #controls {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <h1>📺 Photo Slideshow</h1>
+        <div id="loading-spinner"></div>
+        <div id="loading-message">Loading photos...</div>
+    </div>
+
+    <!-- Error Screen -->
+    <div id="error-screen">
+        <h2>❌ Error</h2>
+        <div id="error-message">Unable to load photos. Please check your connection.</div>
+        <button id="retry-btn">🔄 Retry</button>
+    </div>
+
+    <!-- Main Slideshow -->
+    <div id="slideshow-container">
+        <!-- Photos will be dynamically inserted here -->
+    </div>
+
+    <!-- Controls -->
+    <div id="controls">
+        <button id="play-pause" title="Play/Pause">⏸️</button>
+        <button id="prev" title="Previous">⏮️</button>
+        <button id="next" title="Next">⏭️</button>
+        <div id="speed-control">
+            <input type="range" id="speed" min="2" max="30" value="5" title="Speed">
+            <span id="speed-value">5s</span>
+        </div>
+    </div>
+
+    <!-- Status Display -->
+    <div id="status">
+        <div id="photo-info">No photos available</div>
+        <div id="connection-status">Connecting...</div>
+        <div id="photo-count">0 photos</div>
+    </div>
+
+    <script>
+        class TVSlideshow {
+            constructor() {
+                this.photos = [];
+                this.currentIndex = 0;
+                this.isPlaying = true;
+                this.interval = 5000;
+                this.intervalId = null;
+                this.config = {};
+                this.socket = null;
+                this.transitionType = 'fade';
+                this.controlsTimeout = null;
+                
+                this.init();
+            }
+            
+            async init() {
+                this.setupSocketIO();
+                this.setupEventListeners();
+                await this.loadPhotos();
+                await this.loadConfig();
+                this.hideLoading();
+                this.startSlideshow();
+                this.updateDisplay();
+                this.startControlsTimer();
+            }
+            
+            setupSocketIO() {
+                this.socket = io();
+                
+                this.socket.on('connect', () => {
+                    this.updateConnectionStatus('Connected', '#4CAF50');
+                });
+                
+                this.socket.on('disconnect', () => {
+                    this.updateConnectionStatus('Disconnected', '#f44336');
+                });
+                
+                this.socket.on('photo_added', (photo) => {
+                    this.photos.unshift(photo);
+                    this.updatePhotoCount();
+                    this.updateDisplay();
+                });
+                
+                this.socket.on('photo_deleted', (data) => {
+                    this.photos = this.photos.filter(p => p.filename !== data.filename);
+                    this.updatePhotoCount();
+                    if (this.currentIndex >= this.photos.length) {
+                        this.currentIndex = 0;
+                    }
+                    this.updateDisplay();
+                });
+                
+                this.socket.on('config_updated', (config) => {
+                    this.config = config;
+                    this.interval = config.slideshow.interval;
+                    this.transitionType = config.slideshow.transition;
+                    if (this.isPlaying) {
+                        this.startSlideshow();
+                    }
+                });
+            }
+            
+            setupEventListeners() {
+                document.getElementById('play-pause').addEventListener('click', () => {
+                    this.togglePlayPause();
+                });
+                
+                document.getElementById('prev').addEventListener('click', () => {
+                    this.previousPhoto();
+                });
+                
+                document.getElementById('next').addEventListener('click', () => {
+                    this.nextPhoto();
+                });
+                
+                document.getElementById('speed').addEventListener('input', (e) => {
+                    this.changeSpeed(e.target.value);
+                });
+                
+                document.getElementById('retry-btn').addEventListener('click', () => {
+                    this.hideError();
+                    this.showLoading();
+                    this.init();
+                });
+                
+                // Show controls on any interaction
+                document.addEventListener('mousemove', () => this.showControls());
+                document.addEventListener('click', () => this.showControls());
+                document.addEventListener('keydown', () => this.showControls());
+            }
+            
+            async loadPhotos() {
+                try {
+                    const response = await fetch('/api/photos');
+                    this.photos = await response.json();
+                    this.updatePhotoCount();
+                    
+                    if (this.photos.length === 0) {
+                        throw new Error('No photos available');
+                    }
+                } catch (error) {
+                    console.error('Error loading photos:', error);
+                    this.showError('Failed to load photos');
+                    throw error;
+                }
+            }
+            
+            async loadConfig() {
+                try {
+                    const response = await fetch('/api/config');
+                    this.config = await response.json();
+                    this.interval = this.config.slideshow.interval;
+                    this.transitionType = this.config.slideshow.transition;
+                } catch (error) {
+                    console.error('Error loading config:', error);
+                }
+            }
+            
+            hideLoading() {
+                document.getElementById('loading-screen').style.display = 'none';
+            }
+            
+            showError(message) {
+                document.getElementById('error-screen').style.display = 'flex';
+                document.getElementById('error-message').textContent = message;
+            }
+            
+            hideError() {
+                document.getElementById('error-screen').style.display = 'none';
+            }
+            
+            showLoading() {
+                document.getElementById('loading-screen').style.display = 'flex';
+            }
+            
+            togglePlayPause() {
+                this.isPlaying = !this.isPlaying;
+                const button = document.getElementById('play-pause');
+                
+                if (this.isPlaying) {
+                    button.textContent = '⏸️';
+                    this.startSlideshow();
+                } else {
+                    button.textContent = '▶️';
+                    this.stopSlideshow();
+                }
+            }
+            
+            startSlideshow() {
+                if (this.intervalId) {
+                    clearInterval(this.intervalId);
+                }
+                
+                if (this.photos.length > 0) {
+                    this.intervalId = setInterval(() => {
+                        if (this.isPlaying) {
+                            this.nextPhoto();
+                        }
+                    }, this.interval);
+                }
+            }
+            
+            stopSlideshow() {
+                if (this.intervalId) {
+                    clearInterval(this.intervalId);
+                    this.intervalId = null;
+                }
+            }
+            
+            nextPhoto() {
+                if (this.photos.length === 0) return;
+                
+                this.currentIndex = (this.currentIndex + 1) % this.photos.length;
+                this.updateDisplay();
+            }
+            
+            previousPhoto() {
+                if (this.photos.length === 0) return;
+                
+                this.currentIndex = this.currentIndex === 0 ? 
+                    this.photos.length - 1 : this.currentIndex - 1;
+                this.updateDisplay();
+            }
+            
+            changeSpeed(seconds) {
+                this.interval = seconds * 1000;
+                document.getElementById('speed-value').textContent = seconds + 's';
+                
+                if (this.isPlaying) {
+                    this.startSlideshow();
+                }
+            }
+            
+            updateDisplay() {
+                if (this.photos.length === 0) {
+                    document.getElementById('photo-info').textContent = 'No photos available';
+                    return;
+                }
+                
+                const photo = this.photos[this.currentIndex];
+                
+                // Create photo slides if they don't exist
+                this.createPhotoSlides();
+                
+                // Update current photo
+                this.showPhoto(photo);
+                
+                // Update info
+                document.getElementById('photo-info').textContent = 
+                    `${this.currentIndex + 1} / ${this.photos.length} - ${photo.name}`;
+            }
+            
+            createPhotoSlides() {
+                const container = document.getElementById('slideshow-container');
+                container.innerHTML = '';
+                
+                this.photos.forEach((photo, index) => {
+                    const slide = document.createElement('div');
+                    slide.className = `photo-slide ${this.transitionType}`;
+                    slide.id = `slide-${index}`;
+                    
+                    const img = document.createElement('img');
+                    img.src = photo.url;
+                    img.alt = photo.name;
+                    img.loading = 'lazy';
+                    
+                    slide.appendChild(img);
+                    container.appendChild(slide);
+                });
+            }
+            
+            showPhoto(photo) {
+                // Hide all slides
+                document.querySelectorAll('.photo-slide').forEach(slide => {
+                    slide.classList.remove('active');
+                });
+                
+                // Show current slide
+                const currentSlide = document.getElementById(`slide-${this.currentIndex}`);
+                if (currentSlide) {
+                    currentSlide.classList.add('active');
+                }
+            }
+            
+            updatePhotoCount() {
+                document.getElementById('photo-count').textContent = 
+                    `${this.photos.length} photo${this.photos.length !== 1 ? 's' : ''}`;
+            }
+            
+            updateConnectionStatus(status, color) {
+                const statusElement = document.getElementById('connection-status');
+                statusElement.textContent = status;
+                statusElement.style.color = color;
+            }
+            
+            showControls() {
+                document.body.classList.remove('controls-hidden');
+                this.startControlsTimer();
+            }
+            
+            startControlsTimer() {
+                if (this.controlsTimeout) {
+                    clearTimeout(this.controlsTimeout);
+                }
+                
+                this.controlsTimeout = setTimeout(() => {
+                    document.body.classList.add('controls-hidden');
+                }, 5000);
+            }
+        }
+        
+        // Initialize slideshow when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new TVSlideshow();
+        });
+        
+        // Auto-fullscreen for TV displays
+        document.addEventListener('click', () => {
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen();
+            }
+        });
+        
+        // Keep screen awake
+        if ('wakeLock' in navigator) {
+            navigator.wakeLock.request('screen');
+        }
+    </script>
+</body>
+</html>
